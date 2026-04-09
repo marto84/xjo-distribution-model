@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XJO Distribution Probability Model</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e6f0; min-height: 100vh; padding: 20px; }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .title-input { background: transparent; border: none; color: #fff; font-size: 26px; font-weight: 700; flex: 1; padding: 8px 0; border-bottom: 2px solid transparent; outline: none; transition: border-color 0.2s; }
+  .title-input:hover, .title-input:focus { border-bottom-color: #3b82f6; }
+  .title-input::placeholder { color: #4a5568; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .card { background: #141926; border: 1px solid #1e2a3a; border-radius: 12px; padding: 20px; text-align: center; }
+  .card-label { font-size: 13px; color: #8892a6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .card-value { font-size: 36px; font-weight: 800; }
+  .card-higher .card-value { color: #22c55e; }
+  .card-lower .card-value { color: #ef4444; }
+
+  .slider-section { background: #141926; border: 1px solid #1e2a3a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .slider-label { font-size: 14px; color: #8892a6; }
+  .slider-value { font-size: 22px; font-weight: 700; color: #3b82f6; }
+
+  input[type="range"] { -webkit-appearance: none; width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(to right, #22c55e, #eab308, #ef4444); outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid #3b82f6; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+  input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid #3b82f6; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+  .chart-section { background: #141926; border: 1px solid #1e2a3a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .chart-title { font-size: 15px; color: #8892a6; margin-bottom: 16px; }
+  canvas { width: 100% !important; height: 320px !important; }
+
+  .data-section { background: #141926; border: 1px solid #1e2a3a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .data-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .data-title { font-size: 15px; color: #8892a6; }
+  .data-count { font-size: 13px; color: #4a5568; }
+
+  textarea { width: 100%; height: 140px; background: #0d1117; border: 2px dashed #1e2a3a; border-radius: 8px; color: #e0e6f0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; padding: 14px; resize: vertical; outline: none; transition: border-color 0.2s; }
+  textarea:focus { border-color: #3b82f6; }
+  textarea::placeholder { color: #3a4560; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+  .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #3b82f6; color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-danger { background: #1e2a3a; color: #ef4444; }
+  .btn-danger:hover { background: #2a1a1a; }
+  .btn-secondary { background: #1e2a3a; color: #8892a6; }
+  .btn-secondary:hover { background: #253044; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat { background: #141926; border: 1px solid #1e2a3a; border-radius: 10px; padding: 14px; text-align: center; }
+  .stat-label { font-size: 11px; color: #5a6580; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  .stat-value { font-size: 18px; font-weight: 700; color: #c0c8d8; }
+
+  .prob-bar { height: 32px; border-radius: 6px; overflow: hidden; display: flex; margin-top: 12px; }
+  .prob-bar-higher { background: #22c55e; transition: width 0.3s; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .prob-bar-lower { background: #ef4444; transition: width 0.3s; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+
+  @media (max-width: 600px) {
+    .cards { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .card-value { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="title-row">
+    <input class="title-input" id="modelTitle" type="text" value="XJO Close Distribution — Conditional Probability" placeholder="Click to edit title...">
+  </div>
+
+  <div class="cards">
+    <div class="card card-higher">
+      <div class="card-label">Probability Higher</div>
+      <div class="card-value" id="probHigher">—</div>
+    </div>
+    <div class="card card-lower">
+      <div class="card-label">Probability Lower</div>
+      <div class="card-value" id="probLower">—</div>
+    </div>
+  </div>
+
+  <div class="slider-section">
+    <div class="slider-header">
+      <span class="slider-label">Current Price / Reference Level</span>
+      <span class="slider-value" id="sliderDisplay">0</span>
+    </div>
+    <input type="range" id="priceSlider" min="0" max="100" step="0.1" value="50">
+    <div class="prob-bar">
+      <div class="prob-bar-higher" id="barHigher" style="width:50%">50%</div>
+      <div class="prob-bar-lower" id="barLower" style="width:50%">50%</div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-label">Data Points</div><div class="stat-value" id="statN">0</div></div>
+    <div class="stat"><div class="stat-label">Mean</div><div class="stat-value" id="statMean">—</div></div>
+    <div class="stat"><div class="stat-label">Std Dev</div><div class="stat-value" id="statStd">—</div></div>
+    <div class="stat"><div class="stat-label">Median</div><div class="stat-value" id="statMedian">—</div></div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-title">Distribution Histogram</div>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="data-section">
+    <div class="data-header">
+      <span class="data-title">Paste Distribution Data Points</span>
+      <span class="data-count" id="dataCount">0 points loaded</span>
+    </div>
+    <textarea id="dataInput" placeholder="Paste numbers here — one per line, comma-separated, space-separated, or tab-separated.&#10;&#10;Example:&#10;7820.5, 7845.2, 7801.0, 7890.3, 7855.1&#10;&#10;Or paste a column from a spreadsheet."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="loadData()">Load Data</button>
+      <button class="btn btn-secondary" onclick="loadSample()">Load Sample</button>
+      <button class="btn btn-danger" onclick="clearData()">Clear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let dataPoints = [];
+let chart = null;
+
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+function parseData(text) {
+  const nums = text.replace(/[\t\n\r]+/g, ',').split(',')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(Number)
+    .filter(n => !isNaN(n) && isFinite(n));
+  return nums;
+}
+
+function loadData() {
+  const raw = document.getElementById('dataInput').value;
+  const nums = parseData(raw);
+  if (nums.length === 0) return;
+  dataPoints = nums;
+  afterDataLoad();
+}
+
+function loadSample() {
+  // Sample XJO daily closes — illustrative
+  const base = 7800;
+  const sample = [];
+  for (let i = 0; i < 120; i++) {
+    sample.push(+(base + (Math.random() - 0.48) * 200).toFixed(1));
+  }
+  dataPoints = sample;
+  document.getElementById('dataInput').value = sample.join(', ');
+  afterDataLoad();
+}
+
+function clearData() {
+  dataPoints = [];
+  document.getElementById('dataInput').value = '';
+  document.getElementById('dataCount').textContent = '0 points loaded';
+  document.getElementById('statN').textContent = '0';
+  document.getElementById('statMean').textContent = '—';
+  document.getElementById('statStd').textContent = '—';
+  document.getElementById('statMedian').textContent = '—';
+  document.getElementById('probHigher').textContent = '—';
+  document.getElementById('probLower').textContent = '—';
+  document.getElementById('barHigher').style.width = '50%';
+  document.getElementById('barHigher').textContent = '';
+  document.getElementById('barLower').style.width = '50%';
+  document.getElementById('barLower').textContent = '';
+  clearChart();
+}
+
+function afterDataLoad() {
+  const sorted = [...dataPoints].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const mean = dataPoints.reduce((a, b) => a + b, 0) / dataPoints.length;
+  const median = sorted.length % 2 === 0
+    ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+    : sorted[Math.floor(sorted.length / 2)];
+  const variance = dataPoints.reduce((s, v) => s + (v - mean) ** 2, 0) / dataPoints.length;
+  const std = Math.sqrt(variance);
+
+  document.getElementById('dataCount').textContent = dataPoints.length + ' points loaded';
+  document.getElementById('statN').textContent = dataPoints.length;
+  document.getElementById('statMean').textContent = mean.toFixed(1);
+  document.getElementById('statStd').textContent = std.toFixed(1);
+  document.getElementById('statMedian').textContent = median.toFixed(1);
+
+  // Set slider range
+  const slider = document.getElementById('priceSlider');
+  const pad = (max - min) * 0.1 || 10;
+  slider.min = (min - pad).toFixed(1);
+  slider.max = (max + pad).toFixed(1);
+  slider.step = ((max - min) / 500 || 0.1).toFixed(2);
+  slider.value = mean.toFixed(1);
+
+  updateProb();
+  drawChart();
+}
+
+function updateProb() {
+  if (dataPoints.length === 0) return;
+  const price = parseFloat(document.getElementById('priceSlider').value);
+  document.getElementById('sliderDisplay').textContent = price.toFixed(1);
+
+  const above = dataPoints.filter(v => v > price).length;
+  const below = dataPoints.filter(v => v <= price).length;
+  const pHigh = ((above / dataPoints.length) * 100);
+  const pLow = ((below / dataPoints.length) * 100);
+
+  document.getElementById('probHigher').textContent = pHigh.toFixed(1) + '%';
+  document.getElementById('probLower').textContent = pLow.toFixed(1) + '%';
+
+  const bh = document.getElementById('barHigher');
+  const bl = document.getElementById('barLower');
+  bh.style.width = pHigh + '%';
+  bl.style.width = pLow + '%';
+  bh.textContent = pHigh >= 8 ? pHigh.toFixed(1) + '%' : '';
+  bl.textContent = pLow >= 8 ? pLow.toFixed(1) + '%' : '';
+
+  drawChart();
+}
+
+document.getElementById('priceSlider').addEventListener('input', updateProb);
+
+function clearChart() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawChart() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = rect.width;
+  const H = rect.height;
+
+  ctx.clearRect(0, 0, W, H);
+  if (dataPoints.length === 0) return;
+
+  const sorted = [...dataPoints].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const range = max - min || 1;
+  const numBins = Math.min(Math.max(Math.ceil(Math.sqrt(dataPoints.length)), 8), 40);
+  const binWidth = range / numBins;
+
+  const bins = new Array(numBins).fill(0);
+  const binEdges = [];
+  for (let i = 0; i <= numBins; i++) binEdges.push(min + i * binWidth);
+  dataPoints.forEach(v => {
+    let idx = Math.floor((v - min) / binWidth);
+    if (idx >= numBins) idx = numBins - 1;
+    if (idx < 0) idx = 0;
+    bins[idx]++;
+  });
+
+  const maxBin = Math.max(...bins);
+  const price = parseFloat(document.getElementById('priceSlider').value);
+
+  const padL = 50, padR = 20, padT = 16, padB = 40;
+  const cw = W - padL - padR;
+  const ch = H - padT - padB;
+
+  // Grid lines
+  ctx.strokeStyle = '#1e2a3a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + ch - (i / 4) * ch;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#4a5568'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxBin * i / 4), padL - 8, y + 4);
+  }
+
+  // Bars
+  const barGap = 1;
+  const barW = cw / numBins - barGap;
+  for (let i = 0; i < numBins; i++) {
+    const x = padL + (i / numBins) * cw + barGap / 2;
+    const h = (bins[i] / maxBin) * ch;
+    const midBin = binEdges[i] + binWidth / 2;
+    const isAbove = midBin > price;
+    ctx.fillStyle = isAbove ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)';
+    ctx.fillRect(x, padT + ch - h, barW, h);
+  }
+
+  // Price line
+  const px = padL + ((price - min) / range) * cw;
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(px, padT); ctx.lineTo(px, padT + ch); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(price.toFixed(1), px, padT - 2);
+
+  // X-axis labels
+  ctx.fillStyle = '#4a5568'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  const labelEvery = Math.max(1, Math.floor(numBins / 6));
+  for (let i = 0; i <= numBins; i += labelEvery) {
+    const x = padL + (i / numBins) * cw;
+    ctx.fillText(binEdges[i].toFixed(0), x, padT + ch + 20);
+  }
+}
+
+window.addEventListener('resize', () => { if (dataPoints.length > 0) drawChart(); });
+
+// Title persistence
+document.getElementById('modelTitle').addEventListener('input', function() {
+  document.title = this.value || 'XJO Distribution Probability Model';
+});
+</script>
+</body>
+</html>
